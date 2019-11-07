@@ -98,6 +98,7 @@ allocproc(void)
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if (p->state == UNUSED)
       goto found;
+  #ifdef MLFQ
   p->priority = 0;
   p->clicks = 0;
   c0++;
@@ -110,13 +111,20 @@ allocproc(void)
   pstat_var.ticks[p->pid][3] = 0;
   pstat_var.ticks[p->pid][4] = 0;
   pstat_var.pid[p->pid] = p->pid;
+  #endif
+  #ifdef PBS
+  p->priority = 60;
+  #endif
   release(&ptable.lock);
   return 0;
 
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-  // p->priority = 60;
+  #ifdef PBS
+  p->priority = 60;
+  #endif
+  #ifdef MLFQ
   pstat_var.inuse[p->pid] = 1;
   p->priority = 0;
   p->clicks = 0;
@@ -129,6 +137,7 @@ found:
   pstat_var.ticks[p->pid][3] = 0;
   pstat_var.ticks[p->pid][4] = 0;
   pstat_var.pid[p->pid] = p->pid;
+  #endif
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -393,8 +402,8 @@ int waitx(int *wtime, int *rtime)
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
-        *wtime = p->etime - p->ctime - p->rtime;
         *rtime = p->rtime;
+        *wtime = p->etime - p->ctime - p->rtime;
         release(&ptable.lock);
         return pid;
       }
@@ -446,6 +455,7 @@ int ps(void)
   {
     if (p->pid <= 0)
       continue;
+    // cprintf("%d\n", p->rtime);
     cprintf("%s\t%d\t%s\t%d\t\t%d\n", p->name, p->pid, states[p->state], p->ctime, p->priority);
   }
   return 0;
@@ -502,12 +512,12 @@ nextReady(int *q, int *c)
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
 
-// Round Robin Scheduler
 void scheduler(void)
 {
+
   struct proc *p;
   struct cpu *c = mycpu();
-  c->proc = 0;
+  // c->proc = 0;
 
   for (;;)
   {
@@ -515,93 +525,95 @@ void scheduler(void)
     sti();
     // Loop over process table looking for process to run.
 
-    // #ifdef DEFAULT
-    //     acquire(&ptable.lock);
-    //     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    //     {
-    //       if (p->state != RUNNABLE)
-    //         continue;
+    #ifdef DEFAULT
+        acquire(&ptable.lock);
+        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+        {
+          if (p->state != RUNNABLE)
+            continue;
 
-    //       // Switch to chosen process.  It is the process's job
-    //       // to release ptable.lock and then reacquire it
-    //       // before jumping back to us.
-    //       c->proc = p;
-    //       switchuvm(p);
-    //       p->state = RUNNING;
+          // Switch to chosen process.  It is the process's job
+          // to release ptable.lock and then reacquire it
+          // before jumping back to us.
+          c->proc = p;
+          switchuvm(p);
+          p->state = RUNNING;
 
-    //       swtch(&(c->scheduler), p->context);
-    //       switchkvm();
+          swtch(&(c->scheduler), p->context);
+          switchkvm();
 
-    //       // Process is done running for now.
-    //       // It should have changed its p->state before coming back.
-    //       c->proc = 0;
-    //     }
-    //     release(&ptable.lock);
-    // #else
-    // #ifdef FCFS
-    //     acquire(&ptable.lock);
-    //     struct proc *minP = 0;
-    //     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    //     {
-    //       if (p->state == RUNNABLE)
-    //       {
-    //         if (minP != 0)
-    //         {
-    //           if (p->ctime < minP->ctime)
-    //             minP = p;
-    //         }
-    //         else
-    //           minP = p;
-    //       }
-    //     }
-    //     if (minP != 0)
-    //     {
-    //       p = minP; //the process with the smallest creation time
-    //       c->proc = p;
-    //       switchuvm(p);
-    //       p->state = RUNNING;
-    //       swtch(&c->scheduler, p->context);
-    //       switchkvm();
-    //       // Process is done running for now.
-    //       // It should have changed its p->state before coming back.
-    //       c->proc = 0;
-    //     }
-    //     release(&ptable.lock);
-    // #else
-    // #ifdef PBS
-    //     acquire(&ptable.lock);
-    //     int min_priority = 101;
-    //     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    //     {
-    //       if (p->state != RUNNABLE)
-    //         continue;
-    //       if (p->priority < min_priority)
-    //         min_priority = p->priority;
-    //     }
-    //     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    //     {
-    //       if (p->state != RUNNABLE)
-    //         continue;
-    //       if (p->priority != min_priority)
-    //         continue;
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+        }
+        release(&ptable.lock);
+    #else
+    #ifdef FCFS
+        acquire(&ptable.lock);
+        struct proc *minP = 0;
+        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+        {
+          // if (p->pid < 3)
+          //   continue;
+          if (p->state == RUNNABLE)
+          {
+            if (minP != 0)
+            {
+              if (p->ctime < minP->ctime)
+                minP = p;
+            }
+            else
+              minP = p;
+          }
+        }
+        if (minP != 0)
+        {
+          p = minP; //the process with the smallest creation time
+          c->proc = p;
+          switchuvm(p);
+          p->state = RUNNING;
+          swtch(&c->scheduler, p->context);
+          switchkvm();
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+        }
+        release(&ptable.lock);
+    #else
+    #ifdef PBS
+        acquire(&ptable.lock);
+        int min_priority = 101;
+        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+        {
+          if (p->state != RUNNABLE)
+            continue;
+          if (p->priority < min_priority)
+            min_priority = p->priority;
+        }
+        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+        {
+          if (p->state != RUNNABLE)
+            continue;
+          if (p->priority != min_priority)
+            continue;
 
-    //       // Switch to chosen process.  It is the process's job
-    //       // to release ptable.lock and then reacquire it
-    //       // before jumping back to us.
-    //       c->proc = p;
-    //       switchuvm(p);
-    //       p->state = RUNNING;
+          // Switch to chosen process.  It is the process's job
+          // to release ptable.lock and then reacquire it
+          // before jumping back to us.
+          c->proc = p;
+          switchuvm(p);
+          p->state = RUNNING;
 
-    //       swtch(&c->scheduler, p->context);
-    //       switchkvm();
+          swtch(&c->scheduler, p->context);
+          switchkvm();
 
-    //       // Process is done running for now.
-    //       // It should have changed its p->state before coming back.
-    //       c->proc = 0;
-    //     }
-    //     release(&ptable.lock);
-    // #else
-    // #ifdef MLFQ
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+        }
+        release(&ptable.lock);
+    #else
+    #ifdef MLFQ
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     // struct proc *proc;
@@ -618,7 +630,6 @@ void scheduler(void)
         p->clicks++;
         switchuvm(p);
         p->state = RUNNING;
-        cprintf("rgrtegeg\n");
         swtch(&c->scheduler, p->context);
         switchkvm();
         pstat_var.ticks[p->pid][0] = p->clicks;
@@ -774,11 +785,11 @@ void scheduler(void)
     }
 
     release(&ptable.lock);
-    // #else
-    // #endif
-    // #endif
-    // #endif
-    // #endif
+    #else
+    #endif
+    #endif
+    #endif
+    #endif
   }
 }
 
@@ -884,12 +895,22 @@ static void
 wakeup1(void *chan)
 {
   struct proc *p;
-  // #ifdef PBS
-  // for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-  //   if (p->state == SLEEPING && p->chan == chan)
-  //     p->state = RUNNABLE;
-  // #else
-  // #ifdef MLFQ
+  #ifdef PBS
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    if (p->state == SLEEPING && p->chan == chan)
+      p->state = RUNNABLE;
+  #else
+  #ifdef FCFS
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    if (p->state == SLEEPING && p->chan == chan)
+      p->state = RUNNABLE;
+  #else
+  #ifdef DEFAULT
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    if (p->state == SLEEPING && p->chan == chan)
+      p->state = RUNNABLE;
+  #else
+  #ifdef MLFQ
   int i;
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
@@ -948,9 +969,11 @@ wakeup1(void *chan)
           p->state = RUNNABLE;
     }
   }
-  // #else
-  // #endif
-  // #endif
+  #else
+  #endif
+  #endif
+  #endif
+  #endif
 }
 
 // Wake up all processes sleeping on chan.
