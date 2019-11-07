@@ -1,13 +1,14 @@
 // Per-CPU state
-struct cpu {
-  uchar apicid;                // Local APIC ID
-  struct context *scheduler;   // swtch() here to enter scheduler
-  struct taskstate ts;         // Used by x86 to find stack for interrupt
-  struct segdesc gdt[NSEGS];   // x86 global descriptor table
-  volatile uint started;       // Has the CPU started?
-  int ncli;                    // Depth of pushcli nesting.
-  int intena;                  // Were interrupts enabled before pushcli?
-  struct proc *proc;           // The process running on this cpu or null
+struct cpu
+{
+  uchar apicid;              // Local APIC ID
+  struct context *scheduler; // swtch() here to enter scheduler
+  struct taskstate ts;       // Used by x86 to find stack for interrupt
+  struct segdesc gdt[NSEGS]; // x86 global descriptor table
+  volatile uint started;     // Has the CPU started?
+  int ncli;                  // Depth of pushcli nesting.
+  int intena;                // Were interrupts enabled before pushcli?
+  struct proc *proc;         // The process running on this cpu or null
 };
 
 extern struct cpu cpus[NCPU];
@@ -24,7 +25,8 @@ extern int ncpu;
 // The layout of the context matches the layout of the stack in swtch.S
 // at the "Switch stacks" comment. Switch doesn't save eip explicitly,
 // but it is on the stack and allocproc() manipulates it.
-struct context {
+struct context
+{
   uint edi;
   uint esi;
   uint ebx;
@@ -32,28 +34,50 @@ struct context {
   uint eip;
 };
 
-enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+extern struct proc *q0[NPROC];
+extern struct proc *q1[NPROC];
+extern struct proc *q2[NPROC];
+extern struct proc *q3[NPROC];
+extern struct proc *q4[NPROC];
+extern int c0;
+extern int c1;
+extern int c2;
+extern int c3;
+extern int c4;
+extern struct proc_stat pstat_var;
+
+enum procstate
+{
+  UNUSED,
+  EMBRYO,
+  SLEEPING,
+  RUNNABLE,
+  RUNNING,
+  ZOMBIE
+};
 
 // Per-process state
-struct proc {
-  uint sz;                     // Size of process memory (bytes)
-  pde_t* pgdir;                // Page table
-  char *kstack;                // Bottom of kernel stack for this process
-  enum procstate state;        // Process state
-  int pid;                     // Process ID
-  struct proc *parent;         // Parent process
-  struct trapframe *tf;        // Trap frame for current syscall
-  struct context *context;     // swtch() here to run process
-  void *chan;                  // If non-zero, sleeping on chan
-  int killed;                  // If non-zero, have been killed
-  struct file *ofile[NOFILE];  // Open files
-  struct inode *cwd;           // Current directory
-  char name[16];               // Process name (debugging)
-  int ctime;                   // Creation time for the process
-  int etime;                   // End time for the process
-  int rtime;                   // Run time for the process
-  int iotime;                  // IO time for the process
-  int priority;                // Priority of the process
+struct proc
+{
+  uint sz;                    // Size of process memory (bytes)
+  pde_t *pgdir;               // Page table
+  char *kstack;               // Bottom of kernel stack for this process
+  enum procstate state;       // Process state
+  int pid;                    // Process ID
+  struct proc *parent;        // Parent process
+  struct trapframe *tf;       // Trap frame for current syscall
+  struct context *context;    // swtch() here to run process
+  void *chan;                 // If non-zero, sleeping on chan
+  int killed;                 // If non-zero, have been killed
+  struct file *ofile[NOFILE]; // Open files
+  struct inode *cwd;          // Current directory
+  char name[16];              // Process name (debugging)
+  int ctime;                  // Creation time for the process
+  int etime;                  // End time for the process
+  int rtime;                  // Run time for the process
+  int clicks;						       //number of timer clicks the process has run for
+  int iotime;                 // IO time for the process
+  int priority;               // Priority of the process
 };
 
 // Process memory is laid out contiguously, low addresses first:
