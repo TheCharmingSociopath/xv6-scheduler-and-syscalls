@@ -103,6 +103,7 @@ extern int sys_waitx(void);
 extern int sys_ps(void);
 extern int sys_set_priority(void);
 extern int sys_getpinfo(void);
+extern int sys_getpinfo(void);
 
 static int (*syscalls[])(void) = {
     [SYS_fork] sys_fork,

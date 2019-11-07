@@ -1,8 +1,9 @@
 #include "param.h"
 
 struct proc_stat {
-    int inuse[NPROC]; // whether this slot of the process table is in use (1 or 0)
     int pid[NPROC];   // PID of each process
-    int priority[NPROC]; // current priority level of each process (0-3)
-    int ticks[NPROC][5]; // number of ticks each process has accumulated at each of 4 priorities
+    float runtime[NPROC]; // Use suitable unit of time
+    int num_run[NPROC]; // number of time the process is executed
+    int priority[NPROC]; // current priority level of each process (0-4)
+    int ticks[NPROC][5]; // number of ticks each process has received at each of the 5 priority queues
 };

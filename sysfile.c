@@ -69,34 +69,6 @@ int sys_dup(void)
   return fd;
 }
 
-int sys_getpinfo(void)
-{
-  int i, j;
-  struct proc_stat *p;
-  if (argptr(0, (void *)&p, sizeof(*p)) < 0)
-    return -1;
-
-  for (i = 0; i < 4; i++)
-  {
-    p->inuse[i] = pstat_var.inuse[i];
-    p->pid[i] = pstat_var.pid[i];
-    p->priority[i] = pstat_var.priority[i];
-    for (j = 0; j < 4; j++)
-    {
-      p->ticks[i][j] = pstat_var.ticks[i][j];
-    }
-  }
-
-  return 0;
-}
-
-// int
-// waitx(void)
-// {
-//   int *wtime, *rtime;
-
-// }
-
 int sys_read(void)
 {
   struct file *f;

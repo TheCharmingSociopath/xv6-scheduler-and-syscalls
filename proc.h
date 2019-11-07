@@ -78,6 +78,7 @@ struct proc
   int clicks;						       //number of timer clicks the process has run for
   int iotime;                 // IO time for the process
   int priority;               // Priority of the process
+  // struct proc_stat *pstat;
 };
 
 // Process memory is laid out contiguously, low addresses first:

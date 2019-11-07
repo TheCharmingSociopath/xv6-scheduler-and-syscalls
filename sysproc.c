@@ -44,6 +44,18 @@ sys_ps(void)
 }
 
 int
+sys_getpinfo(void)
+{
+  struct proc_stat* stat;
+  int pid;
+  if(argptr(1, (char**)&stat, sizeof(int)) < 0)
+    return -1;
+  if(argint(0, &pid) < 0)
+    return -1;
+  return getpinfo(pid, stat);
+}
+
+int
 sys_set_priority(void)
 {
   int pid;

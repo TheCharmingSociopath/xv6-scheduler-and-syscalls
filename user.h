@@ -27,7 +27,7 @@ int uptime(void);
 int waitx(int*, int*);
 int ps(void);
 int set_priority(int, int);
-int getpinfo(struct proc_stat*);
+int getpinfo(int, struct proc_stat*);
 
 // ulib.c
 int stat(const char*, struct stat*);
