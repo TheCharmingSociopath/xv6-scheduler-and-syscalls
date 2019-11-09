@@ -412,6 +412,7 @@ int set_priority(int pid, int priority)
       p->priority = priority;
     }
   }
+  cprintf("Process with pid %d is set to priority %d.\n", pid, priority);
   return oldPriority;
 }
 
